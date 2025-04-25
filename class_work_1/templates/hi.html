@@ -1,0 +1,197 @@
+📁 FLASK APP STRUCTURE
+1. 🏁 Basic Setup
+python
+Copy
+Edit
+from flask import Flask, render_template, request, redirect, url_for, session
+import mysql.connector
+from werkzeug.security import generate_password_hash, check_password_hash
+Flask: the web framework you're using
+
+render_template: to show HTML pages
+
+request: to get data from forms
+
+redirect, url_for: for navigating between pages
+
+session: to keep users logged in
+
+mysql.connector: to connect to your MySQL database
+
+werkzeug.security: to secure passwords by hashing them
+
+2. 🔐 App Initialization
+python
+Copy
+Edit
+app = Flask(__name__)
+app.secret_key = 'your_secret_key'
+This creates the Flask app
+
+secret_key is needed for session management (like login memory)
+
+3. 🛢️ Connect to MySQL
+python
+Copy
+Edit
+db = mysql.connector.connect(
+    host='localhost',
+    user='root',
+    password='',
+    database='flask_class'
+)
+This connects your app to a local MySQL database called flask_class
+
+Make sure this DB and a users table already exist!
+
+4. 🔁 Homepage Redirect
+python
+Copy
+Edit
+@app.route('/')
+def home():
+    return redirect(url_for('login'))
+Visiting / redirects the user to the login page
+
+5. 📝 Register New Users
+python
+Copy
+Edit
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+This page has two jobs:
+
+GET: Show the registration form
+
+POST: Handle form submission and save user
+
+python
+Copy
+Edit
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        role = request.form['role']
+Gets form data: username, password, and role
+
+python
+Copy
+Edit
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
+        existing_user = cursor.fetchone()
+Checks if the username is already taken
+
+python
+Copy
+Edit
+        if existing_user:
+            msg = 'Username already exists!'
+If the user exists, show error
+
+python
+Copy
+Edit
+        else:
+            hashed_pw = generate_password_hash(password)
+            cursor.execute(
+                "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+                (username, hashed_pw, role)
+            )
+            db.commit()
+Hashes the password for security
+
+Adds the user to the database
+
+db.commit() saves the changes
+
+6. 🔓 Login System
+python
+Copy
+Edit
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+GET: Shows login form
+
+POST: Handles login data
+
+python
+Copy
+Edit
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
+    user = cursor.fetchone()
+Gets the user from the DB by username
+
+python
+Copy
+Edit
+    if user and check_password_hash(user['password'], password):
+Checks if the password entered matches the hashed password
+
+python
+Copy
+Edit
+        session['username'] = user['username']
+        session['role'] = user['role']
+Saves user info in the session so they stay logged in
+
+python
+Copy
+Edit
+        if user['role'] == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('user_dashboard'))
+Redirects based on the user's role
+
+7. 🧑‍💼 Admin Dashboard
+python
+Copy
+Edit
+@app.route('/admin')
+def admin_dashboard():
+    if session.get('role') == 'admin':
+        return render_template('admin_dashboard.html', username=session.get('username'))
+    return redirect(url_for('login'))
+Only shows this page if the user is an admin
+
+8. 👤 User Dashboard
+python
+Copy
+Edit
+@app.route('/user')
+def user_dashboard():
+    if session.get('role') == 'user':
+        return render_template('user_dashboard.html', username=session.get('username'))
+    return redirect(url_for('login'))
+Only shows this page if the user is a normal user
+
+9. 🚪 Logout
+python
+Copy
+Edit
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+Clears the session (logs the user out)
+
+10. ▶️ Run the App
+python
+Copy
+Edit
+if __name__ == '__main__':
+    app.run(debug=True)
+Starts your Flask app on http://localhost:5000/
+
+debug=True helps you see errors during development
+
+💡 Summary:
+
+Feature	Description
+/register	Register new users (admin/user)
+/login	Login and verify password
+/admin	Admin dashboard
+/user	User dashboard
+/logout	Logout and clear session
